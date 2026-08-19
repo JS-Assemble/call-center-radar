@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<p>As of: {{ as_of or "no calls ingested yet" }}</p>
+<table>
+    <thead>
+        <tr><th>Call</th><th>Date</th><th>Agent</th><th>Resolution</th><th>Score</th></tr>
+    </thead>
+    <tbody>
+        {% for row in calls %}
+        <tr>
+            <td><a href="/calls/{{ row.call_id }}">{{ row.call_id }}</a></td>
+            <td>{{ row.call_date or "—" }}</td>
+            <td>{{ row.agent_id or "—" }}</td>
+            <td>{{ row.resolution or "—" }}</td>
+            <td>{{ row.score if row.score is not none else "—" }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+*.db
+*.db-journal
+.callradar_work/
+data/audio/*
+data/metadata/*
+!data/audio/.gitkeep
+!data/metadata/.gitkeep
+eval/hand_transcripts/*
+!eval/hand_transcripts/.gitkeep

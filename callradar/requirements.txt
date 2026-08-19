@@ -1,0 +1,33 @@
+# Transcription
+faster-whisper==1.0.3
+
+# Audio signals (dead air, talk-over)
+soundfile==0.12.1
+numpy==1.26.4
+
+# Sentiment (mood valence)
+vaderSentiment==3.3.2
+
+# Fuzzy matching (repeat-question detection, evidence-gate quote match)
+rapidfuzz==3.9.6
+
+# Schema / validation / API types (single source of truth for LLM schema)
+pydantic==2.8.2
+
+# LLM (Gemini free tier)
+google-generativeai==0.7.2
+
+# API
+fastapi==0.111.1
+uvicorn[standard]==0.30.3
+jinja2==3.1.4
+
+# WER evaluation against hand transcripts
+jiwer==3.0.4
+
+# Env config
+python-dotenv==1.0.1
+
+# NOTE: ffmpeg is a system binary, not a pip package.
+#   macOS:  brew install ffmpeg
+#   Ubuntu: apt-get install ffmpeg

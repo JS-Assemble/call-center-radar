@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Call {{ call.call_id }}{% endblock %}
+{% block content %}
+{% if not call %}
+    <p>Call not found.</p>
+{% else %}
+    <h2>{{ call.call_id }}</h2>
+    <p>Agent: {{ call.agent_id or "—" }} · Date: {{ call.call_date or "—" }}
+       · Score: {{ score.score if score else "—" }}</p>
+
+    <audio id="player" controls src="/audio/{{ call.call_id }}"></audio>
+
+    <h3>Analysis</h3>
+    {% if analysis and analysis.validated %}
+        <p><strong>Intent:</strong> {{ analysis.intent }}</p>
+        <p><strong>Resolution:</strong> {{ analysis.resolution }}</p>
+        <p><strong>Summary:</strong> {{ analysis.summary }}</p>
+    {% elif analysis %}
+        <p class="insufficient">Insufficient evidence — analysis did not pass the evidence gate
+           after {{ analysis.retries }} retries.</p>
+    {% else %}
+        <p class="insufficient">Not yet analyzed.</p>
+    {% endif %}
+
+    <h3>Transcript</h3>
+    {% for t in turns %}
+        <div class="turn {{ t.speaker }}" id="turn-{{ t.turn_id }}">
+            <span class="citation" data-seek="{{ t.start_s }}">[{{ "%.1f"|format(t.start_s) }}s]</span>
+            <strong>{{ t.speaker }}:</strong> {{ t.text }}
+        </div>
+    {% endfor %}
+{% endif %}
+{% endblock %}
