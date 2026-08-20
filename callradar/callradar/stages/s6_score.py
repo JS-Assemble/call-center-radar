@@ -2,10 +2,18 @@
 reproducible, tunable, and each component's contribution can be cited
 separately on the dashboard (unlike an "attention score by LLM").
 
+Only scores calls where s5 has actually finished (validated=1, or retries
+exhausted so it's permanently parked at validated=0 = "insufficient
+evidence"). A call s5 hasn't reached yet has no analyses row at all — scoring
+it now would silently treat "not yet analyzed" as "unresolved", and because
+scores are skip-if-present, that wrong score would never get corrected once
+s5 actually processes it.
+
 Skip: score already exists for this call_id
 """
 import json
 
+from callradar.config import CONFIG
 from callradar.db import row_exists, session
 
 WEIGHTS = {
@@ -54,7 +62,12 @@ def score_call(conn, call_id: str) -> tuple[float, dict]:
 
 def run() -> None:
     with session() as conn:
-        call_ids = [r["call_id"] for r in conn.execute("SELECT call_id FROM calls").fetchall()]
+        call_ids = [r["call_id"] for r in conn.execute(
+            """SELECT c.call_id FROM calls c
+               JOIN analyses a ON a.call_id = c.call_id
+               WHERE a.validated = 1 OR a.retries >= ?""",
+            (CONFIG.max_retries,),
+        ).fetchall()]
 
         processed = 0
         for call_id in call_ids:
