@@ -5,6 +5,7 @@ __pycache__/
 *.db
 *.db-journal
 .callradar_work/
+.hf_cache/
 data/audio/*
 data/metadata/*
 !data/audio/.gitkeep

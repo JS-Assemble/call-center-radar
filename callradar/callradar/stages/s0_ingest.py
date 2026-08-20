@@ -3,12 +3,36 @@
 Input:  data/audio/*.mp3, data/metadata/*.json
 Output: one row per call in the `calls` table
 Skip:   row already exists for call_id
+
+Metadata shape (Little Harper Valley Bank challenge data): identity lives
+under nested `agent.metadata.agent_name` / `caller.metadata["first and last
+name"]` — `speaker_id` is NOT a stable identity (58 distinct agent
+speaker_ids map onto only 10 real agents, reused across sessions).
+`hangup_time_ms` is per-party (agent and caller each hang up separately, 40
+records total have one side null); the call's hangup is the later of the
+two, kept for audit only — duration is end_time_ms - start_time_ms, not
+derived from hangup.
 """
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 from callradar.config import CONFIG
 from callradar.db import row_exists, session
+
+
+def _call_date(start_time_ms: int | None) -> str | None:
+    if start_time_ms is None:
+        return None
+    return datetime.fromtimestamp(start_time_ms / 1000, tz=timezone.utc).date().isoformat()
+
+
+def _hangup_time_ms(meta: dict) -> int | None:
+    candidates = [
+        t for t in (meta.get("agent", {}).get("hangup_time_ms"), meta.get("caller", {}).get("hangup_time_ms"))
+        if t is not None
+    ]
+    return max(candidates) if candidates else None
 
 
 def run() -> None:
@@ -35,8 +59,10 @@ def run() -> None:
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     call_id, str(audio_path), str(metadata_path),
-                    meta.get("call_date"), meta.get("agent_id"), meta.get("customer_id"),
-                    start_ms, end_ms, meta.get("hangup_time_ms"), duration_ms,
+                    _call_date(start_ms),
+                    meta.get("agent", {}).get("metadata", {}).get("agent_name"),
+                    meta.get("caller", {}).get("metadata", {}).get("first and last name"),
+                    start_ms, end_ms, _hangup_time_ms(meta), duration_ms,
                 ),
             )
 

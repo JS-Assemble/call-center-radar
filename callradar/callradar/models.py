@@ -35,7 +35,7 @@ class MoodShift(BaseModel):
 class CallAnalysis(BaseModel):
     """Shape requested from the LLM (s5) — matches Gemini's JSON schema 1:1."""
     call_id: str
-    intent: str = Field(description="One of the closed taxonomy of 12-18 intents")
+    intent: str = Field(description="One of callradar.taxonomy.INTENT_TAXONOMY")
     resolution: Literal["resolved", "unresolved", "escalated"]
     summary: str
     mood_shift: MoodShift | None = None

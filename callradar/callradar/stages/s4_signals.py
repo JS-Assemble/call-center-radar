@@ -11,9 +11,14 @@ Signals:
 
 Skip: signals already exist for this call_id
 """
+from pathlib import Path
+
+import numpy as np
+import soundfile as sf
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from rapidfuzz import fuzz
 
+from callradar.config import CONFIG
 from callradar.db import row_exists, session
 
 _vader = SentimentIntensityAnalyzer()
@@ -23,6 +28,37 @@ REPEAT_QUESTION_THRESHOLD = 85  # rapidfuzz token_sort_ratio
 
 def compute_mood(text: str) -> float:
     return _vader.polarity_scores(text)["compound"]
+
+
+def _rms(samples: np.ndarray) -> float:
+    return float(np.sqrt(np.mean(np.square(samples)))) if samples.size else 0.0
+
+
+def compute_dead_air(turns: list[dict], agent_audio: np.ndarray, customer_audio: np.ndarray, sr: int) -> list[dict]:
+    """Gaps where neither channel has a turn are candidates; a candidate only
+    counts as dead air if it's long enough AND both channels' RMS energy in
+    that window stays below threshold — timestamps alone can't tell a real
+    silence from a quiet or untranscribed utterance in the gap.
+    """
+    intervals = sorted((t["start_s"], t["end_s"]) for t in turns)
+    merged: list[list[float]] = []
+    for start, end in intervals:
+        if merged and start <= merged[-1][1]:
+            merged[-1][1] = max(merged[-1][1], end)
+        else:
+            merged.append([start, end])
+
+    dead_airs = []
+    for (_, gap_start), (next_start, _) in zip(merged, merged[1:]):
+        gap_s = next_start - gap_start
+        if gap_s < CONFIG.dead_air_min_gap_s:
+            continue
+        lo, hi = int(gap_start * sr), int(next_start * sr)
+        if max(_rms(agent_audio[lo:hi]), _rms(customer_audio[lo:hi])) >= CONFIG.dead_air_rms_threshold:
+            continue
+        next_turn = min((t for t in turns if t["start_s"] >= next_start), key=lambda t: t["start_s"])
+        dead_airs.append({"turn_id": next_turn["turn_id"], "gap_s": gap_s})
+    return dead_airs
 
 
 def compute_talk_over(turns: list[dict]) -> list[dict]:
@@ -46,6 +82,8 @@ def compute_repeat_questions(customer_turns: list[dict]) -> list[dict]:
 
 
 def run() -> None:
+    work_dir = Path(CONFIG.work_dir)
+
     with session() as conn:
         call_ids = [r["call_id"] for r in conn.execute("SELECT call_id FROM calls").fetchall()]
 
@@ -76,6 +114,14 @@ def run() -> None:
                 conn.execute(
                     "INSERT OR REPLACE INTO signals (call_id, signal_type, turn_id, value, detail) VALUES (?, 'repeat_question', ?, ?, ?)",
                     (call_id, rep["turn_id"], rep["score"], rep["matches"]),
+                )
+
+            agent_audio, sr = sf.read(work_dir / f"{call_id}.agent.wav")
+            customer_audio, _ = sf.read(work_dir / f"{call_id}.customer.wav")
+            for da in compute_dead_air(turns, agent_audio, customer_audio, sr):
+                conn.execute(
+                    "INSERT OR REPLACE INTO signals (call_id, signal_type, turn_id, value, detail) VALUES (?, 'dead_air', ?, ?, ?)",
+                    (call_id, da["turn_id"], da["gap_s"], None),
                 )
 
             processed += 1
