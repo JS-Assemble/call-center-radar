@@ -1,28 +1,32 @@
-"""s3 — turns: merge the two independently-transcribed channels by start_s
-into a single coherent turn sequence per call, assign the final turn_index,
-and populate the turns_fts search index.
+"""s3 — turns: interleave the two independently-transcribed channels by
+start_s, then merge consecutive same-speaker sentences (from s2's per-
+sentence segments) into one turn per speaker-run — breaking only when the
+other speaker actually speaks, never on a time gap. A turn is "what one
+speaker said before the other one spoke," not an arbitrary pause threshold.
 
-VAD naturally splits one speaker's continuous speech at brief pauses, so the
-raw per-channel segments from s2 are fragments, not turns: same-speaker
-segments separated by under 0.8s are merged into one. Empty-text segments are
-dropped as silence artefacts. Cross-speaker overlaps (talk-over) are never
-merged — that's signal for s4, not noise, so they stay as separate turns.
+This still doesn't hurt evidence-gate citations: a citation's quote is
+matched against its turn's text with rapidfuzz.partial_ratio (substring-
+tolerant), and its timestamp only needs to fall within the turn's [start_s,
+end_s] span — merging into a wider span only makes that check more lenient,
+never less. Empty-text segments are dropped as silence artefacts.
+Cross-speaker overlaps (talk-over) naturally break the run, so they stay
+their own turns — that's signal for s4, not noise.
 
 Skip: call already has turn_index != -1 for all its turns
 """
 from callradar.db import session
 
-_MERGE_GAP_S = 0.8
 
-
-def _merge_call_turns(rows: list[dict]) -> list[dict]:
-    """rows must be sorted by start_s. Returns merged {speaker, start_s, end_s, text} turns."""
+def _merge_by_speaker_run(rows: list[dict]) -> list[dict]:
+    """rows must be sorted by start_s. Consecutive same-speaker rows merge
+    into one turn; a different speaker in between always breaks the run.
+    """
     cleaned = [r for r in rows if r["text"].strip()]
 
     merged: list[dict] = []
     for r in cleaned:
         prev = merged[-1] if merged else None
-        if prev and prev["speaker"] == r["speaker"] and r["start_s"] - prev["end_s"] < _MERGE_GAP_S:
+        if prev and prev["speaker"] == r["speaker"]:
             prev["end_s"] = max(prev["end_s"], r["end_s"])
             prev["text"] = f'{prev["text"]} {r["text"].strip()}'.strip()
         else:
@@ -45,7 +49,7 @@ def run() -> None:
                 (call_id,),
             ).fetchall()]
 
-            merged = _merge_call_turns(rows)
+            merged = _merge_by_speaker_run(rows)
 
             conn.execute("DELETE FROM turns WHERE call_id = ?", (call_id,))
             for idx, t in enumerate(merged):
@@ -58,7 +62,7 @@ def run() -> None:
         # Rebuild FTS index (content table already has final text)
         conn.execute("INSERT INTO turns_fts(turns_fts) VALUES ('rebuild')")
 
-    print(f"s3 turns done ({len(call_ids)} calls merged)")
+    print(f"s3 turns done ({len(call_ids)} calls)")
 
 
 if __name__ == "__main__":

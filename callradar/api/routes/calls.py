@@ -92,8 +92,12 @@ def dashboard(
 def call_detail(request: Request, call_id: str):
     with session() as conn:
         call = conn.execute("SELECT * FROM calls WHERE call_id = ?", (call_id,)).fetchone()
+        # Order by start_s, not turn_index: turn_index is -1 (a "not yet
+        # ordered" placeholder) until s3 runs, so sorting by it is undefined
+        # for a call s3 hasn't reached yet. start_s is the real timestamp and
+        # sorts correctly whether or not s3 has caught up.
         turns = conn.execute(
-            "SELECT * FROM turns WHERE call_id = ? ORDER BY turn_index", (call_id,)
+            "SELECT * FROM turns WHERE call_id = ? ORDER BY start_s ASC", (call_id,)
         ).fetchall()
         analysis = conn.execute("SELECT * FROM analyses WHERE call_id = ?", (call_id,)).fetchone()
         score = conn.execute("SELECT * FROM scores WHERE call_id = ?", (call_id,)).fetchone()
