@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% import "_macros.html" as macros %}
+{% block title %}{{ customer_id }}{% endblock %}
+{% block content %}
+<h2>{{ customer_id }}</h2>
+
+{% if calls %}
+    <p>Mood across calls: {{ sparkline | safe }}</p>
+    <table>
+        <thead>
+            <tr><th>Call</th><th>Date</th><th>Agent</th><th>Resolution</th><th>Score</th></tr>
+        </thead>
+        <tbody>
+            {% for c in calls %}
+            <tr>
+                <td><a href="/calls/{{ c.call_id }}">{{ c.call_id }}</a></td>
+                <td>{{ c.call_date or "—" }}</td>
+                <td>{{ c.agent_id or "—" }}</td>
+                <td>{{ c.resolution or "—" if c.validated else "insufficient evidence" }}</td>
+                <td>{{ c.score if c.score is not none else "—" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    {{ macros.empty_state("No calls found for this customer.") }}
+{% endif %}
+{% endblock %}

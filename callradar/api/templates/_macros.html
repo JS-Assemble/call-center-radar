@@ -1,0 +1,30 @@
+{% macro citation_chip(c) %}
+<span class="citation" data-seek="{{ c.timestamp_s }}" data-turn-id="{{ c.turn_id }}">&ldquo;{{ c.quote }}&rdquo;</span>
+{%- endmacro %}
+
+{% macro empty_state(message) %}
+<p class="insufficient">{{ message }}</p>
+{%- endmacro %}
+
+{% macro analysis_panel(analysis, citations, mood_shift) %}
+{% if analysis and analysis.validated %}
+    <p><strong>Intent:</strong> {{ analysis.intent }}</p>
+    <p><strong>Resolution:</strong> {{ analysis.resolution }}</p>
+    <p><strong>Summary:</strong> {{ analysis.summary }}</p>
+    {% if citations %}
+    <p><strong>Evidence:</strong>
+        {% for c in citations %}{{ citation_chip(c) }}{% if not loop.last %} {% endif %}{% endfor %}
+    </p>
+    {% endif %}
+    {% if mood_shift %}
+    <p><strong>Mood shift:</strong> {{ mood_shift.mood_from }} &rarr; {{ mood_shift.mood_to }}
+        {{ citation_chip(mood_shift.evidence) }}</p>
+    {% else %}
+        {{ empty_state("No mood shift detected on this call.") }}
+    {% endif %}
+{% elif analysis %}
+    {{ empty_state("Insufficient evidence — analysis did not pass the evidence gate after " ~ analysis.retries ~ " retries.") }}
+{% else %}
+    {{ empty_state("Not yet analyzed.") }}
+{% endif %}
+{%- endmacro %}

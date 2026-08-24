@@ -1,10 +1,25 @@
 {% extends "base.html" %}
+{% import "_macros.html" as macros %}
 {% block title %}Dashboard{% endblock %}
 {% block content %}
-<p>As of: {{ as_of or "no calls ingested yet" }}</p>
+<form method="get" action="/" class="filters">
+    <div>
+        <label for="as_of">As of</label>
+        <input type="date" id="as_of" name="as_of" value="{{ as_of }}">
+    </div>
+    {% for name, value in filters.items() %}
+        {% if value %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endif %}
+    {% endfor %}
+    <button type="submit">Apply</button>
+    {% if filters.agent_id or filters.intent or filters.resolution or filters.date_from or filters.date_to %}
+        <a href="/?as_of={{ as_of }}">Clear filters</a>
+    {% endif %}
+</form>
+
+{% if calls %}
 <table>
     <thead>
-        <tr><th>Call</th><th>Date</th><th>Agent</th><th>Resolution</th><th>Score</th></tr>
+        <tr><th>Call</th><th>Date</th><th>Agent</th><th>Resolution</th><th>Score</th><th>Why</th></tr>
     </thead>
     <tbody>
         {% for row in calls %}
@@ -14,8 +29,16 @@
             <td>{{ row.agent_id or "—" }}</td>
             <td>{{ row.resolution or "—" }}</td>
             <td>{{ row.score if row.score is not none else "—" }}</td>
+            <td>
+                {% for label, severity in row.chips %}
+                    <span class="chip chip-{{ severity }}">{{ label }}</span>
+                {% endfor %}
+            </td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
+{% else %}
+    {{ macros.empty_state("No calls match these filters.") }}
+{% endif %}
 {% endblock %}

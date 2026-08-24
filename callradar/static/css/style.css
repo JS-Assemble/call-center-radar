@@ -1,0 +1,38 @@
+body { font-family: system-ui, sans-serif; margin: 2rem; color: #1a1a1a; }
+table { border-collapse: collapse; width: 100%; }
+th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #ddd; }
+.citation { color: #0b5fff; cursor: pointer; text-decoration: underline; }
+.insufficient { color: #999; font-style: italic; }
+.turn.agent { background: #f4f8ff; }
+.turn.customer { background: #fff8f0; }
+.turn { padding: 0.5rem; border-radius: 4px; margin-bottom: 0.25rem; }
+.turn.active { outline: 2px solid #0b5fff; }
+
+.nav { display: flex; gap: 1rem; margin: 0.5rem 0 1.5rem; }
+.nav a { color: #1a1a1a; text-decoration: none; }
+.nav a:hover { text-decoration: underline; }
+
+.search-box { margin-left: auto; }
+.search-box input[type="search"] { padding: 0.3rem 0.5rem; border: 1px solid #ccc; border-radius: 4px; min-width: 220px; }
+
+header { display: flex; align-items: center; gap: 1rem; }
+
+.chip {
+    display: inline-block; font-size: 0.75rem; padding: 0.1rem 0.5rem;
+    border-radius: 999px; margin-right: 0.25rem; white-space: nowrap;
+}
+.chip-danger { background: #fde2e2; color: #9c1c1c; }
+.chip-warning { background: #fdf0d5; color: #8a5b00; }
+.chip-muted { background: #eee; color: #666; }
+
+.filters { display: flex; gap: 0.75rem; align-items: end; margin-bottom: 1rem; flex-wrap: wrap; }
+.filters label { display: block; font-size: 0.8rem; color: #555; }
+
+.mood-timeline { display: block; margin: 0.5rem 0; }
+.sparkline { display: block; }
+
+.bar-row { display: flex; align-items: center; gap: 0.5rem; }
+.bar-track { background: #eee; border-radius: 3px; flex: 1; height: 0.6rem; overflow: hidden; }
+.bar-fill { background: #0b5fff; height: 100%; }
+
+mark { background: #fff3a3; padding: 0 0.1rem; }

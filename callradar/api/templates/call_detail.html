@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_macros.html" as macros %}
 {% block title %}Call {{ call.call_id }}{% endblock %}
 {% block content %}
 {% if not call %}
@@ -11,15 +12,11 @@
     <audio id="player" controls src="/audio/{{ call.call_id }}"></audio>
 
     <h3>Analysis</h3>
-    {% if analysis and analysis.validated %}
-        <p><strong>Intent:</strong> {{ analysis.intent }}</p>
-        <p><strong>Resolution:</strong> {{ analysis.resolution }}</p>
-        <p><strong>Summary:</strong> {{ analysis.summary }}</p>
-    {% elif analysis %}
-        <p class="insufficient">Insufficient evidence — analysis did not pass the evidence gate
-           after {{ analysis.retries }} retries.</p>
-    {% else %}
-        <p class="insufficient">Not yet analyzed.</p>
+    {{ macros.analysis_panel(analysis, citations, mood_shift) }}
+
+    {% if mood_svg %}
+    <h3>Mood over the call</h3>
+    {{ mood_svg | safe }}
     {% endif %}
 
     <h3>Transcript</h3>

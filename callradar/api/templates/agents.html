@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% import "_macros.html" as macros %}
+{% block title %}Agents{% endblock %}
+{% block content %}
+{% if agents %}
+<table>
+    <thead>
+        <tr><th>Agent</th><th>Calls</th><th>Median handle time</th><th>Resolution rate</th></tr>
+    </thead>
+    <tbody>
+        {% for a in agents %}
+        <tr>
+            <td><a href="/?agent_id={{ a.agent_id | urlencode }}">{{ a.agent_id }}</a></td>
+            <td>{{ a.call_count }}</td>
+            <td>{{ "%.0f"|format(a.median_handle_time_s) ~ "s" if a.median_handle_time_s is not none else "—" }}</td>
+            <td>{{ "%.0f%%"|format(a.resolution_rate * 100) if a.resolution_rate is not none else "—" }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+    {{ macros.empty_state("No agent data yet.") }}
+{% endif %}
+{% endblock %}

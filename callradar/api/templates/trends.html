@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% import "_macros.html" as macros %}
+{% block title %}Trends{% endblock %}
+{% block content %}
+{% if movers %}
+<h3>Top movers (last 7 days vs. prior 7)</h3>
+<table>
+    <thead><tr><th>Intent</th><th>Last 7d</th><th>Prior 7d</th><th>Change</th></tr></thead>
+    <tbody>
+        {% for m in movers[:5] %}
+        <tr>
+            <td>{{ m.intent }}</td>
+            <td>{{ m.recent }}</td>
+            <td>{{ m.prior }}</td>
+            <td>{{ "+" if m.delta > 0 else "" }}{{ m.delta }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+<h3>Intent volume by day</h3>
+{% if dates %}
+<table>
+    <thead>
+        <tr><th>Date</th>{% for intent in intents %}<th>{{ intent }}</th>{% endfor %}</tr>
+    </thead>
+    <tbody>
+        {% for d in dates %}
+        <tr>
+            <td>{{ d }}</td>
+            {% for intent in intents %}
+            {% set n = by_date[d].get(intent, 0) %}
+            <td>
+                {% if n %}
+                <a href="/?intent={{ intent }}&date_from={{ d }}&date_to={{ d }}">
+                    <div class="bar-row">
+                        <div class="bar-track"><div class="bar-fill" style="width: {{ (n / max_n * 100) | round(1) }}%"></div></div>
+                        <span>{{ n }}</span>
+                    </div>
+                </a>
+                {% else %}&mdash;{% endif %}
+            </td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+    {{ macros.empty_state("No validated analyses yet — trends need s5/s6 to have run.") }}
+{% endif %}
+{% endblock %}

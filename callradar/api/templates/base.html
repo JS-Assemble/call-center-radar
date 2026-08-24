@@ -3,21 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <title>{% block title %}Call-Centre Radar{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
     <script src="/static/js/citation-seek.js" defer></script>
-    <style>
-        body { font-family: system-ui, sans-serif; margin: 2rem; color: #1a1a1a; }
-        table { border-collapse: collapse; width: 100%; }
-        th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #ddd; }
-        .citation { color: #0b5fff; cursor: pointer; text-decoration: underline; }
-        .insufficient { color: #999; font-style: italic; }
-        .turn.agent { background: #f4f8ff; }
-        .turn.customer { background: #fff8f0; }
-        .turn { padding: 0.5rem; border-radius: 4px; margin-bottom: 0.25rem; }
-    </style>
 </head>
 <body>
-    <header><h1><a href="/" style="text-decoration:none;color:inherit;">Call-Centre Radar</a></h1></header>
+    <header>
+        <h1><a href="/" style="text-decoration:none;color:inherit;">Call-Centre Radar</a></h1>
+        <form class="search-box" method="get" action="/search">
+            <input type="search" name="q" placeholder="Search transcripts or jump to a call id&hellip;">
+        </form>
+    </header>
+    <nav class="nav">
+        <a href="/">Dashboard</a>
+        <a href="/customers">Customers</a>
+        <a href="/trends">Trends</a>
+        <a href="/agents">Agents</a>
+    </nav>
     {% block content %}{% endblock %}
 </body>
 </html>
