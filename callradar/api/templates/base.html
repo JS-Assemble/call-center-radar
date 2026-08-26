@@ -3,13 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <title>{% block title %}Call-Centre Radar{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/style.css">
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
     <script src="/static/js/citation-seek.js" defer></script>
 </head>
 <body>
     <header>
-        <h1><a href="/" style="text-decoration:none;color:inherit;">Call-Centre Radar</a></h1>
+        <h1><a href="/">Call-Centre Radar</a></h1>
         <form class="search-box" method="get" action="/search">
             <input type="search" name="q" placeholder="Search transcripts or jump to a call id&hellip;">
         </form>
@@ -20,6 +23,19 @@
         <a href="/trends">Trends</a>
         <a href="/agents">Agents</a>
     </nav>
-    {% block content %}{% endblock %}
+    <main class="shell">
+        {% block content %}{% endblock %}
+    </main>
+    <script>
+        (() => {
+            const path = location.pathname;
+            document.querySelectorAll(".nav a").forEach((a) => {
+                const href = a.getAttribute("href");
+                const isRoot = href === "/";
+                const match = isRoot ? path === "/" : path.startsWith(href);
+                if (match) a.classList.add("active");
+            });
+        })();
+    </script>
 </body>
 </html>

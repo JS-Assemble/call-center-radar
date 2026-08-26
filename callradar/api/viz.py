@@ -41,13 +41,13 @@ def render_mood_timeline_svg(
     for p, (px, py) in zip(points, coords):
         is_shift = p["turn_id"] == shift_turn_id
         r = 5 if is_shift else 2.5
-        fill = "#d1451b" if is_shift else "#0b5fff"
+        fill = "#ff6b81" if is_shift else "#22d3ee"
         markers.append(f'<circle cx="{px:.1f}" cy="{py:.1f}" r="{r}" fill="{fill}" />')
 
     shift_label = ""
     if mood_shift:
         shift_label = (
-            f'<text x="{width - pad_x:.1f}" y="14" text-anchor="end" font-size="11" fill="#d1451b">'
+            f'<text x="{width - pad_x:.1f}" y="14" text-anchor="end" font-size="11" fill="#ff6b81">'
             f"{escape(mood_shift['mood_from'])} &rarr; {escape(mood_shift['mood_to'])}</text>"
         )
 
@@ -55,8 +55,8 @@ def render_mood_timeline_svg(
         f'<svg class="mood-timeline" viewBox="0 0 {width} {height}" width="{width}" height="{height}" '
         f'xmlns="http://www.w3.org/2000/svg">',
         f'<line x1="{pad_x}" y1="{zero_y:.1f}" x2="{width - pad_x}" y2="{zero_y:.1f}" '
-        f'stroke="#ddd" stroke-dasharray="3,3" />',
-        f'<polyline points="{polyline}" fill="none" stroke="#0b5fff" stroke-width="1.5" />',
+        f'stroke="rgba(255,255,255,0.15)" stroke-dasharray="3,3" />',
+        f'<polyline points="{polyline}" fill="none" stroke="#7c5cff" stroke-width="1.5" />',
         *markers,
         shift_label,
         "</svg>",
@@ -83,7 +83,7 @@ def render_sparkline_svg(values: list[float], width: int = 200, height: int = 30
         return (
             f'<svg class="sparkline" viewBox="0 0 {width} {height}" width="{width}" height="{height}" '
             f'xmlns="http://www.w3.org/2000/svg">'
-            f'<circle cx="{width / 2:.1f}" cy="{cy:.1f}" r="2.5" fill="#0b5fff" /></svg>'
+            f'<circle cx="{width / 2:.1f}" cy="{cy:.1f}" r="2.5" fill="#22d3ee" /></svg>'
         )
 
     pad_x = 4.0
@@ -93,5 +93,5 @@ def render_sparkline_svg(values: list[float], width: int = 200, height: int = 30
     return (
         f'<svg class="sparkline" viewBox="0 0 {width} {height}" width="{width}" height="{height}" '
         f'xmlns="http://www.w3.org/2000/svg">'
-        f'<polyline points="{polyline}" fill="none" stroke="#0b5fff" stroke-width="1.5" /></svg>'
+        f'<polyline points="{polyline}" fill="none" stroke="#7c5cff" stroke-width="1.5" /></svg>'
     )

@@ -2,13 +2,15 @@
 {% import "_macros.html" as macros %}
 {% block title %}Trends{% endblock %}
 {% block content %}
+{{ macros.page_head("Trends", "How call volume and intent are moving, week over week.") }}
 {% if movers %}
 <h3>Top movers (last 7 days vs. prior 7)</h3>
 <table>
-    <thead><tr><th>Intent</th><th>Last 7d</th><th>Prior 7d</th><th>Change</th></tr></thead>
+    <thead><tr><th>#</th><th>Intent</th><th>Last 7d</th><th>Prior 7d</th><th>Change</th></tr></thead>
     <tbody>
         {% for m in movers[:5] %}
         <tr>
+            <td>{{ loop.index }}</td>
             <td>{{ m.intent }}</td>
             <td>{{ m.recent }}</td>
             <td>{{ m.prior }}</td>
@@ -23,11 +25,12 @@
 {% if dates %}
 <table>
     <thead>
-        <tr><th>Date</th>{% for intent in intents %}<th>{{ intent }}</th>{% endfor %}</tr>
+        <tr><th>#</th><th>Date</th>{% for intent in intents %}<th>{{ intent }}</th>{% endfor %}</tr>
     </thead>
     <tbody>
         {% for d in dates %}
         <tr>
+            <td>{{ loop.index }}</td>
             <td>{{ d }}</td>
             {% for intent in intents %}
             {% set n = by_date[d].get(intent, 0) %}

@@ -2,6 +2,7 @@
 {% import "_macros.html" as macros %}
 {% block title %}Call {{ call.call_id }}{% endblock %}
 {% block content %}
+{{ macros.back_link() }}
 {% if not call %}
     <p>Call not found.</p>
 {% else %}

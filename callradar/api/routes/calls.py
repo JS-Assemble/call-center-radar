@@ -27,6 +27,9 @@ def resolve_as_of_date(conn, override: str | None) -> str:
     return row["d"] if row and row["d"] else ""
 
 
+PAGE_SIZE = 100
+
+
 @router.get("/", response_class=HTMLResponse)
 def dashboard(
     request: Request,
@@ -36,6 +39,7 @@ def dashboard(
     resolution: str | None = None,
     date_from: str | None = None,
     date_to: str | None = None,
+    show_all: bool = False,
 ):
     with session() as conn:
         as_of = resolve_as_of_date(conn, as_of)
@@ -62,6 +66,15 @@ def dashboard(
             params.append(date_to)
         where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
 
+        total_matching = conn.execute(
+            f"""SELECT COUNT(*) n FROM calls c
+                LEFT JOIN scores s ON s.call_id = c.call_id
+                LEFT JOIN analyses a ON a.call_id = c.call_id
+                {where}""",
+            params,
+        ).fetchone()["n"]
+
+        limit_clause = "" if show_all else f"LIMIT {PAGE_SIZE}"
         rows = conn.execute(
             f"""SELECT c.call_id, c.call_date, c.agent_id, s.score, s.breakdown,
                        a.resolution, a.validated
@@ -70,7 +83,7 @@ def dashboard(
                 LEFT JOIN analyses a ON a.call_id = c.call_id
                 {where}
                 ORDER BY s.score ASC NULLS LAST
-                LIMIT 100""",
+                {limit_clause}""",
             params,
         ).fetchall()
 
@@ -83,8 +96,20 @@ def dashboard(
         "agent_id": agent_id or "", "intent": intent or "", "resolution": resolution or "",
         "date_from": date_from or "", "date_to": date_to or "",
     }
+    scored = [c["score"] for c in calls if c["score"] is not None]
+    stats = {
+        "total": len(calls),
+        "total_matching": total_matching,
+        "avg_score": round(sum(scored) / len(scored), 1) if scored else None,
+        "escalated": sum(1 for c in calls if c["resolution"] == "escalated"),
+        "unresolved": sum(1 for c in calls if c["resolution"] == "unresolved"),
+    }
     return templates.TemplateResponse(
-        "dashboard.html", {"request": request, "calls": calls, "as_of": as_of, "filters": active_filters},
+        "dashboard.html",
+        {
+            "request": request, "calls": calls, "as_of": as_of, "filters": active_filters,
+            "stats": stats, "show_all": show_all,
+        },
     )
 
 

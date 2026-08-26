@@ -2,6 +2,7 @@
 {% import "_macros.html" as macros %}
 {% block title %}Customers{% endblock %}
 {% block content %}
+{{ macros.page_head("Customers", "Everyone who's called in, sorted the way you pick below.") }}
 <form method="get" action="/customers" class="filters">
     <div>
         <label for="q">Search</label>
@@ -21,11 +22,12 @@
 {% if customers %}
 <table>
     <thead>
-        <tr><th>Customer</th><th>Calls</th><th>Resolved</th><th>Avg score</th></tr>
+        <tr><th>#</th><th>Customer</th><th>Calls</th><th>Resolved</th><th>Avg score</th></tr>
     </thead>
     <tbody>
         {% for c in customers %}
         <tr>
+            <td>{{ loop.index }}</td>
             <td><a href="/customers/{{ c.customer_id | urlencode }}">{{ c.customer_id }}</a></td>
             <td>{{ c.call_count }}</td>
             <td>{{ c.resolved_count }} / {{ c.call_count }}</td>

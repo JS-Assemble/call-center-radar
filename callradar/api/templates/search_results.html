@@ -2,6 +2,7 @@
 {% import "_macros.html" as macros %}
 {% block title %}Search: {{ q }}{% endblock %}
 {% block content %}
+{{ macros.back_link() }}
 <h2>Search results for &ldquo;{{ q }}&rdquo;</h2>
 
 {% if not q %}
@@ -9,7 +10,7 @@
 {% elif results %}
     {% for r in results %}
     <div class="turn">
-        <strong><a href="/calls/{{ r.call_id }}">{{ r.call_id }}</a></strong>
+        <strong>{{ loop.index }}. <a href="/calls/{{ r.call_id }}">{{ r.call_id }}</a></strong>
         {% for hit in r.hits %}
         <div>
             <a href="/calls/{{ r.call_id }}?turn={{ hit.turn_id }}">{{ hit.speaker }} @ {{ "%.1f"|format(hit.start_s) }}s</a>

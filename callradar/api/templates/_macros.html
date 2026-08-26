@@ -1,9 +1,29 @@
+{% macro back_link() %}
+<a href="#" class="back-link" onclick="history.back(); return false;" aria-label="Back">&larr;</a>
+{%- endmacro %}
+
 {% macro citation_chip(c) %}
 <span class="citation" data-seek="{{ c.timestamp_s }}" data-turn-id="{{ c.turn_id }}">&ldquo;{{ c.quote }}&rdquo;</span>
 {%- endmacro %}
 
 {% macro empty_state(message) %}
-<p class="insufficient">{{ message }}</p>
+<div class="empty-state">{{ message }}</div>
+{%- endmacro %}
+
+{% macro score_badge(score) %}
+{%- if score is not none -%}
+{%- set sev = 'good' if score >= 80 else ('warn' if score >= 50 else 'bad') -%}
+<span class="score-badge score-{{ sev }}">{{ score }}</span>
+{%- else -%}
+<span class="score-badge score-none">&mdash;</span>
+{%- endif -%}
+{%- endmacro %}
+
+{% macro page_head(title, subtitle) %}
+<div class="page-head">
+    <h2>{{ title }}</h2>
+    {% if subtitle %}<p class="page-sub">{{ subtitle }}</p>{% endif %}
+</div>
 {%- endmacro %}
 
 {% macro analysis_panel(analysis, citations, mood_shift) %}

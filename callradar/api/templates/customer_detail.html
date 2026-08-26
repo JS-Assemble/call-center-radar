@@ -2,17 +2,19 @@
 {% import "_macros.html" as macros %}
 {% block title %}{{ customer_id }}{% endblock %}
 {% block content %}
+{{ macros.back_link() }}
 <h2>{{ customer_id }}</h2>
 
 {% if calls %}
     <p>Mood across calls: {{ sparkline | safe }}</p>
     <table>
         <thead>
-            <tr><th>Call</th><th>Date</th><th>Agent</th><th>Resolution</th><th>Score</th></tr>
+            <tr><th>#</th><th>Call</th><th>Date</th><th>Agent</th><th>Resolution</th><th>Score</th></tr>
         </thead>
         <tbody>
             {% for c in calls %}
             <tr>
+                <td>{{ loop.index }}</td>
                 <td><a href="/calls/{{ c.call_id }}">{{ c.call_id }}</a></td>
                 <td>{{ c.call_date or "—" }}</td>
                 <td>{{ c.agent_id or "—" }}</td>

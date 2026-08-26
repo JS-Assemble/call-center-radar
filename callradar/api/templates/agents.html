@@ -2,14 +2,16 @@
 {% import "_macros.html" as macros %}
 {% block title %}Agents{% endblock %}
 {% block content %}
+{{ macros.page_head("Agents", "Call volume, handle time, and resolution rate by agent.") }}
 {% if agents %}
 <table>
     <thead>
-        <tr><th>Agent</th><th>Calls</th><th>Median handle time</th><th>Resolution rate</th></tr>
+        <tr><th>#</th><th>Agent</th><th>Calls</th><th>Median handle time</th><th>Resolution rate</th></tr>
     </thead>
     <tbody>
         {% for a in agents %}
         <tr>
+            <td>{{ loop.index }}</td>
             <td><a href="/?agent_id={{ a.agent_id | urlencode }}">{{ a.agent_id }}</a></td>
             <td>{{ a.call_count }}</td>
             <td>{{ "%.0f"|format(a.median_handle_time_s) ~ "s" if a.median_handle_time_s is not none else "—" }}</td>
