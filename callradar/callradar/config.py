@@ -20,6 +20,12 @@ class Config:
     asr_model: str = os.getenv("CALLRADAR_ASR_MODEL", "base.en")
     asr_compute_type: str = os.getenv("CALLRADAR_ASR_COMPUTE_TYPE", "int8")
     asr_workers: int = int(os.getenv("CALLRADAR_ASR_WORKERS", "3"))
+    # Below this average per-word probability, a sentence is dropped as a
+    # likely hallucination rather than kept as fact — same treatment as an
+    # empty-text segment. Calibrated against a real tail artifact ("You
+    # should." at avg ~0.31) vs. legitimate-but-quiet content elsewhere in
+    # the corpus (e.g. a mumbled "4.45 p.m." at avg ~0.65) staying well clear.
+    asr_min_word_confidence: float = float(os.getenv("CALLRADAR_ASR_MIN_WORD_CONFIDENCE", "0.45"))
 
     dead_air_min_gap_s: float = float(os.getenv("CALLRADAR_DEAD_AIR_MIN_GAP_S", "2.0"))
     dead_air_rms_threshold: float = float(os.getenv("CALLRADAR_DEAD_AIR_RMS_THRESHOLD", "0.03"))

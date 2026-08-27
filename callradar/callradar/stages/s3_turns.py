@@ -37,13 +37,17 @@ def _merge_by_speaker_run(rows: list[dict]) -> list[dict]:
     return merged
 
 
-def run() -> None:
+def run(call_ids: list[str] | None = None) -> None:
     with session() as conn:
-        call_ids = [r["call_id"] for r in conn.execute(
-            "SELECT DISTINCT call_id FROM turns WHERE turn_index = -1"
-        ).fetchall()]
+        query = "SELECT DISTINCT call_id FROM turns WHERE turn_index = -1"
+        params: list = []
+        if call_ids is not None:
+            placeholders = ",".join("?" for _ in call_ids)
+            query += f" AND call_id IN ({placeholders})"
+            params.extend(call_ids)
+        pending_call_ids = [r["call_id"] for r in conn.execute(query, params).fetchall()]
 
-        for call_id in call_ids:
+        for call_id in pending_call_ids:
             rows = [dict(r) for r in conn.execute(
                 "SELECT speaker, start_s, end_s, text FROM turns WHERE call_id = ? ORDER BY start_s ASC",
                 (call_id,),
@@ -62,7 +66,7 @@ def run() -> None:
         # Rebuild FTS index (content table already has final text)
         conn.execute("INSERT INTO turns_fts(turns_fts) VALUES ('rebuild')")
 
-    print(f"s3 turns done ({len(call_ids)} calls)")
+    print(f"s3 turns done ({len(pending_call_ids)} calls)")
 
 
 if __name__ == "__main__":

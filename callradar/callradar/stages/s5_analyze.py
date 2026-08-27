@@ -20,13 +20,9 @@ from callradar.models import CallAnalysis
 from callradar.taxonomy import INTENT_DESCRIPTIONS, INTENT_TAXONOMY
 from callradar.validators.evidence_gate import validate_analysis
 
-# Flat (no $ref) OpenAPI-subset schema — mirrors CallAnalysis by hand because
-# Gemini's schema converter doesn't follow pydantic's $defs/$ref indirection.
 _RESPONSE_SCHEMA = {
     "type": "object",
     "properties": {
-        # enum-constrained, not free text: a taxonomy the model can drift from
-        # isn't a taxonomy — see callradar/taxonomy.py.
         "intent": {"type": "string", "enum": INTENT_TAXONOMY},
         "resolution": {"type": "string", "enum": ["resolved", "unresolved", "escalated"]},
         "summary": {"type": "string"},
@@ -34,13 +30,13 @@ _RESPONSE_SCHEMA = {
             "type": "object",
             "nullable": True,
             "properties": {
-                "turn_id": {"type": "string"},
+                "turn_id": {"type": "string", "description": "the bracketed turn id from the transcript, e.g. \"3\""},
                 "mood_from": {"type": "string"},
                 "mood_to": {"type": "string"},
                 "evidence": {
                     "type": "object",
                     "properties": {
-                        "turn_id": {"type": "string"},
+                        "turn_id": {"type": "string", "description": "the bracketed turn id from the transcript, e.g. \"3\""},
                         "timestamp_s": {"type": "number"},
                         "quote": {"type": "string"},
                     },
@@ -54,7 +50,7 @@ _RESPONSE_SCHEMA = {
             "items": {
                 "type": "object",
                 "properties": {
-                    "turn_id": {"type": "string"},
+                    "turn_id": {"type": "string", "description": "the bracketed turn id from the transcript, e.g. \"3\""},
                     "timestamp_s": {"type": "number"},
                     "quote": {"type": "string"},
                 },
@@ -80,17 +76,13 @@ _TAXONOMY_LIST = "\n".join(f"- {intent}: {desc}" for intent, desc in INTENT_DESC
 
 
 def build_prompt(call_id: str, turns: list[dict]) -> str:
-    # start_s/end_s are given per turn specifically so timestamp_s has
-    # something real to be derived from — without them in-context, the model
-    # has no basis for a citation timestamp and tends to default to 0.0,
-    # which fails the evidence gate's timestamp_in_span check every time.
     transcript = "\n".join(
-        f"[{t['turn_id']}] ({t['start_s']:.1f}-{t['end_s']:.1f}s) {t['speaker']}: {t['text']}"
+        f"[{t['turn_index']}] ({t['start_s']:.1f}-{t['end_s']:.1f}s) {t['speaker']}: {t['text']}"
         for t in turns
     )
     return (
         "Analyze this call transcript. Every claim (each citation, and the "
-        "mood_shift's evidence if present) must cite a turn_id from the "
+        "mood_shift's evidence if present) must cite a turn id from the "
         "transcript below, a timestamp_s within that turn's given (start-end) "
         "range, and a quote copied verbatim from that turn's text. If there "
         "is no genuine mood shift, omit mood_shift entirely rather than "
@@ -100,12 +92,20 @@ def build_prompt(call_id: str, turns: list[dict]) -> str:
     )
 
 
+def _expand_turn_id(call_id: str, short_id: str) -> str:
+    return f"{call_id}:{short_id}"
+
+
+def _expand_citation_turn_ids(raw: dict, call_id: str) -> None:
+    for citation in raw.get("citations", []):
+        citation["turn_id"] = _expand_turn_id(call_id, citation["turn_id"])
+    mood_shift = raw.get("mood_shift")
+    if mood_shift:
+        mood_shift["turn_id"] = _expand_turn_id(call_id, mood_shift["turn_id"])
+        mood_shift["evidence"]["turn_id"] = _expand_turn_id(call_id, mood_shift["evidence"]["turn_id"])
+
+
 def call_gemini(prompt: str) -> dict:
-    """Gemini free tier, JSON-mode, schema-constrained to CallAnalysis's shape.
-    Must raise on quota exhaustion so run() can catch and exit cleanly —
-    google.generativeai raises on quota/network failures, so this is a thin
-    pass-through rather than a try/except.
-    """
     response = _get_model().generate_content(
         prompt,
         generation_config=genai.GenerationConfig(
@@ -116,9 +116,6 @@ def call_gemini(prompt: str) -> dict:
     return json.loads(response.text)
 
 
-# Free-tier 429s come in two shapes: PerMinute (transient, recovers in
-# seconds — worth sleeping and retrying) and PerDay (genuinely exhausted for
-# today — must propagate so run() stops cleanly instead of spinning).
 _TRANSIENT_QUOTA_RE = re.compile(r"PerMinute")
 _RETRY_DELAY_RE = re.compile(r"retry_delay\s*\{\s*seconds:\s*(\d+)")
 
@@ -138,20 +135,21 @@ def _call_gemini_with_backoff(prompt: str, max_attempts: int = 5) -> dict:
     raise RuntimeError("unreachable")
 
 
-def run(limit: int | None = None) -> None:
+def run(call_ids: list[str] | None = None, limit: int | None = None) -> None:
     with session() as conn:
-        # Excludes validated=1 (done) and retries >= max_retries (given up —
-        # stays parked at validated=0 forever otherwise, which without this
-        # check would mean a call that can never validate gets retried, and
-        # burns rate-limited quota, on every single future run() call).
-        calls = conn.execute(
-            """SELECT c.call_id FROM calls c
-               LEFT JOIN analyses a ON a.call_id = c.call_id
-               WHERE (a.validated IS NULL OR a.validated = 0)
-                 AND COALESCE(a.retries, 0) < ?"""
-            + (" LIMIT ?" if limit is not None else ""),
-            (CONFIG.max_retries, limit) if limit is not None else (CONFIG.max_retries,),
-        ).fetchall()
+        query = """SELECT c.call_id FROM calls c
+                   LEFT JOIN analyses a ON a.call_id = c.call_id
+                   WHERE (a.validated IS NULL OR a.validated = 0)
+                     AND COALESCE(a.retries, 0) < ?"""
+        params: list = [CONFIG.max_retries]
+        if call_ids is not None:
+            placeholders = ",".join("?" for _ in call_ids)
+            query += f" AND c.call_id IN ({placeholders})"
+            params.extend(call_ids)
+        if limit is not None:
+            query += " LIMIT ?"
+            params.append(limit)
+        calls = conn.execute(query, params).fetchall()
 
         processed = 0
         for row in calls:
@@ -171,7 +169,8 @@ def run(limit: int | None = None) -> None:
                 print(f"s5: stopping cleanly at {call_id}: {exc}")
                 break
 
-            raw["call_id"] = call_id  # set deterministically, never trust the model to echo it
+            _expand_citation_turn_ids(raw, call_id)
+            raw["call_id"] = call_id
             analysis = CallAnalysis.model_validate(raw)
             result = validate_analysis(analysis, turns_by_id={t["turn_id"]: t for t in turns})
 
@@ -190,7 +189,7 @@ def run(limit: int | None = None) -> None:
                     json.dumps(raw), int(result.validated), retries + (0 if result.validated else 1),
                 ),
             )
-            conn.commit()  # per-call, not batched — a kill/crash mid-run keeps what finished
+            conn.commit()
             processed += 1
 
     print(f"s5 analyze processed {processed} calls this run")

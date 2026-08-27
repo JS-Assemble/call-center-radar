@@ -60,17 +60,20 @@ def score_call(conn, call_id: str) -> tuple[float, dict]:
     return score, breakdown
 
 
-def run() -> None:
+def run(call_ids: list[str] | None = None) -> None:
     with session() as conn:
-        call_ids = [r["call_id"] for r in conn.execute(
-            """SELECT c.call_id FROM calls c
-               JOIN analyses a ON a.call_id = c.call_id
-               WHERE a.validated = 1 OR a.retries >= ?""",
-            (CONFIG.max_retries,),
-        ).fetchall()]
+        query = """SELECT c.call_id FROM calls c
+                   JOIN analyses a ON a.call_id = c.call_id
+                   WHERE (a.validated = 1 OR a.retries >= ?)"""
+        params: list = [CONFIG.max_retries]
+        if call_ids is not None:
+            placeholders = ",".join("?" for _ in call_ids)
+            query += f" AND c.call_id IN ({placeholders})"
+            params.extend(call_ids)
+        eligible_call_ids = [r["call_id"] for r in conn.execute(query, params).fetchall()]
 
         processed = 0
-        for call_id in call_ids:
+        for call_id in eligible_call_ids:
             if row_exists(conn, "scores", "call_id", call_id):
                 continue
             score, breakdown = score_call(conn, call_id)

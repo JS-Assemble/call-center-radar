@@ -81,14 +81,20 @@ def compute_repeat_questions(customer_turns: list[dict]) -> list[dict]:
     return repeats
 
 
-def run() -> None:
+def run(call_ids: list[str] | None = None) -> None:
     work_dir = Path(CONFIG.work_dir)
 
     with session() as conn:
-        call_ids = [r["call_id"] for r in conn.execute("SELECT call_id FROM calls").fetchall()]
+        if call_ids is not None:
+            placeholders = ",".join("?" for _ in call_ids)
+            query_call_ids = [r["call_id"] for r in conn.execute(
+                f"SELECT call_id FROM calls WHERE call_id IN ({placeholders})", call_ids
+            ).fetchall()]
+        else:
+            query_call_ids = [r["call_id"] for r in conn.execute("SELECT call_id FROM calls").fetchall()]
 
         processed = 0
-        for call_id in call_ids:
+        for call_id in query_call_ids:
             if row_exists(conn, "signals", "call_id", call_id):
                 continue
 
