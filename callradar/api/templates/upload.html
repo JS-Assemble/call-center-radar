@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% import "_macros.html" as macros %}
+{% block title %}Upload{% endblock %}
+{% block content %}
+{{ macros.page_head("Upload a call", "Add an audio recording and its metadata — it runs through the pipeline automatically and shows up below like any other call.") }}
+
+{% if error %}
+<p style="color:#b00020;">{{ error }}</p>
+{% endif %}
+
+<form action="/upload" method="post" enctype="multipart/form-data" style="max-width: 440px;">
+    <p>
+        <label for="audio_file"><strong>Audio file</strong> (.mp3)</label><br>
+        <input type="file" id="audio_file" name="audio_file" accept="audio/mpeg,.mp3" required>
+    </p>
+    <p>
+        <label for="metadata_file"><strong>Metadata file</strong> (.json)</label><br>
+        <input type="file" id="metadata_file" name="metadata_file" accept="application/json,.json" required>
+    </p>
+    <p style="color:#666; font-size:0.9rem;">
+        The call_id is taken from the audio filename (without extension) — e.g.
+        <code>CALL_00123.mp3</code> becomes <code>CALL_00123</code>. Metadata
+        should follow the same nested shape as the rest of the corpus
+        (<code>agent.metadata.agent_name</code>, <code>caller.metadata</code>, etc).
+    </p>
+    <button type="submit">Upload &amp; process</button>
+</form>
+
+{% if recent_uploads %}
+<h3 style="margin-top: 2rem;">This session's uploads</h3>
+<table>
+    <thead><tr><th>Call</th><th>Status</th></tr></thead>
+    <tbody>
+        {% for u in recent_uploads %}
+        <tr>
+            <td>
+                {% if u.status == "done" %}
+                <a href="/calls/{{ u.call_id }}">{{ u.call_id }}</a>
+                {% else %}
+                {{ u.call_id }}
+                {% endif %}
+            </td>
+            <td>{{ u.status }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<p style="color:#666; font-size:0.85rem;">
+    Refresh to see status update: pending &rarr; processing &rarr; done.
+    s1&ndash;s4 (demux, transcribe, merge, signals) usually take under a
+    minute for one call; s5 (LLM analysis) is skipped automatically if
+    Gemini isn't configured yet, and s6 (score) still runs regardless.
+</p>
+{% else %}
+{{ macros.empty_state("No uploads yet this session.") }}
+{% endif %}
+{% endblock %}

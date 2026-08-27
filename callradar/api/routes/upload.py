@@ -28,6 +28,17 @@ templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templa
 _upload_status: dict[str, str] = {}
 
 
+def _already_complete(call_id: str) -> bool:
+    """True if this call has a score row already — the last stage to run,
+    so its presence means s1-s6 all finished on a prior pass. Lets a
+    re-upload of the same call_id skip straight to 'done' instead of paying
+    for a background task that would just be six fast no-ops anyway
+    (every stage is already skip-if-present internally).
+    """
+    with session() as conn:
+        return row_exists(conn, "scores", "call_id", call_id)
+
+
 def _register_call(call_id: str, audio_path: Path, metadata_path: Path, meta: dict) -> None:
     """Same field mapping as s0_ingest.run(), but for one call we already
     know the metadata dict for, rather than scanning a directory.
@@ -108,6 +119,15 @@ def upload_submit(
     metadata_path.write_text(json.dumps(meta))
 
     _register_call(call_id, audio_path, metadata_path, meta)
+
+    if _already_complete(call_id):
+        # Fast path: this call was already fully processed (e.g. re-uploaded
+        # the same file, or it's one of the pre-processed corpus calls) —
+        # skip the background task entirely instead of paying for six
+        # stage calls that would each just do a DB lookup and exit.
+        _upload_status[call_id] = "done"
+        return RedirectResponse(url="/upload", status_code=303)
+
     _upload_status[call_id] = "pending"
     background_tasks.add_task(_process_and_track, call_id)
 
