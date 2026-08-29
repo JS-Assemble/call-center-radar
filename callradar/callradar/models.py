@@ -52,3 +52,40 @@ class CallScore(BaseModel):
     call_id: str
     score: float
     breakdown: dict[str, float]
+
+
+class CallDetailResponse(BaseModel):
+    """Public API shape for GET /api/calls/{call_id} — the transcript plus
+    every judgment made about the call, each traceable back to a citation.
+    """
+    call_id: str
+    agent_id: str | None
+    call_date: str | None
+    transcript: list[Turn]
+    intent: str | None = None
+    resolution: Literal["resolved", "unresolved", "escalated"] | None = None
+    summary: str | None = None
+    validated: bool
+    mood_shift: MoodShift | None = None
+    citations: list[Citation] = Field(default_factory=list)
+    needs_attention_score: float | None = None
+    score_breakdown: dict[str, float] | None = None
+
+
+class CallSummary(BaseModel):
+    """One row of the ranked needs-attention list — enough to triage and
+    decide which call to open next via GET /api/calls/{call_id}.
+    """
+    call_id: str
+    call_date: str | None
+    agent_id: str | None
+    resolution: str | None
+    validated: bool
+    needs_attention_score: float | None
+    reasons: list[str] = Field(default_factory=list)
+
+
+class CallListResponse(BaseModel):
+    calls: list[CallSummary]
+    returned: int
+    total_matching: int
