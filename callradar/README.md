@@ -10,12 +10,9 @@ for what was rejected and why.
 ## Prerequisites
 
 - Python 3.12
+- Git
 - A free Gemini API key for s5 (analysis) — https://aistudio.google.com/apikey
 
-## Quickstart — from scratch
-
-```bash
-# 1. Set up the environment
 ## Setup & Running
 
 ### 1. Clone and enter the project
@@ -43,6 +40,8 @@ pip install -r requirements.txt
 ```powershell
 python scripts/setup_ffmpeg.py
 ```
+Downloads ffmpeg/ffprobe straight into `tools/ffmpeg/` inside the project.
+No admin rights, no PATH changes, no terminal restart.
 
 ### 5. Configure environment variables
 ```powershell
@@ -53,36 +52,103 @@ At minimum, set:
 ```
 GEMINI_API_KEY=<your key>
 ```
-See `.env.example` for every other option (ASR model, evidence-gate thresholds, etc).
+See `.env.example` for every other option (ASR model, evidence-gate
+thresholds, dead-air detection, etc).
 
 ### 6. Initialize the database
 ```powershell
 python -m callradar.db
 ```
+
+### 7. Get the call data — pick one
+
+**Option A — fetch the pre-processed dataset** (instant browsing, skips the
+multi-hour pipeline run):
+```powershell
+python scripts/fetch_dataset.py
+```
+This repo is private, so this needs a personal access token — see
+"Fetching the pre-processed dataset" below.
+
+**Option B — run the pipeline yourself from raw audio:**
+```powershell
 unzip /path/to/callradar-data.zip -d data
-
-# 3. Run the full pipeline: ingest -> demux -> ASR transcription -> turn
-#    merge -> signals -> LLM analysis -> scoring. This is the step that turns
-#    the raw recordings into transcripts (s2) and structured analysis (s5).
 python scripts/run_pipeline.py --stage all
+```
+This runs all seven stages: ingest → demux → ASR transcription → turn merge
+→ signals → LLM analysis → scoring. This is the step that turns raw
+recordings into transcripts (s2) and structured analysis (s5).
 
-# 4. Serve the dashboard + API
-uvicorn api.main:app --reload
+**Re-running is always safe.** Every stage is skip-if-present — it only
+does work for calls it hasn't finished yet — so `run_pipeline.py --stage
+all` can be re-run anytime (new calls added, an interrupted run, a code
+change to one stage) without re-paying for calls already done. s2 (ASR,
+~3–5h across the full corpus) and s5 (Gemini free tier, rate-limited) are
+the two long-running stages; both commit per-call, so a
+kill/crash/quota-exhaustion mid-run keeps whatever finished and picks back
+up on the next invocation.
+
+To run one stage only:
+```powershell
+python scripts/run_pipeline.py --stage s5
+```
+(valid: `s0`…`s6`)
+
+To resume the full chain partway through:
+```powershell
+python scripts/run_pipeline.py --stage all --from-stage s5
 ```
 
-Then open http://localhost:8000 for the dashboard, or see **API** below for
-the JSON endpoints.
+To process just a handful of calls quickly (e.g. for a live demo instead of
+waiting on the full corpus):
+```powershell
+python scripts/run_pipeline.py --stage s0
+python scripts/run_pipeline.py --stage s1 --limit 20
+python scripts/run_pipeline.py --stage s2 --limit 20
+python scripts/run_pipeline.py --stage s3
+python scripts/run_pipeline.py --stage s4
+python scripts/run_pipeline.py --stage s5 --limit 20
+python scripts/run_pipeline.py --stage s6
+```
 
-**Re-running is always safe.** Every stage is skip-if-present — it only does
-work for calls it hasn't finished yet — so `run_pipeline.py --stage all` can
-be re-run anytime (new calls added, an interrupted run, a code change to one
-stage) without re-paying for calls already done. s2 (ASR, ~3–5h across the
-full corpus) and s5 (Gemini free tier, rate-limited) are the two
-long-running stages; both commit per-call, so a kill/crash/quota-exhaustion
-mid-run keeps whatever finished and picks back up on the next invocation. To
-run one stage only: `python scripts/run_pipeline.py --stage s5` (valid:
-`s0`…`s6`). To resume the full chain partway through:
-`python scripts/run_pipeline.py --stage all --from-stage s5`.
+### 8. Serve the dashboard + API
+```powershell
+uvicorn api.main:app --reload
+```
+Open http://localhost:8000 for the dashboard, or see **API** below for the
+JSON endpoints.
+
+---
+
+### Fetching the pre-processed dataset (private repo)
+
+This repo is private, so downloading the release asset requires a personal
+access token:
+
+1. `https://github.com/settings/personal-access-tokens/new` (needs an org
+   invite/collaborator access first — the same access needed to clone this
+   repo)
+2. Repository access → this repo only
+3. Permissions → **Contents: Read-only**
+4. Generate, copy the token
+5. Add to `.env`:
+```
+CALLRADAR_GITHUB_TOKEN=github_pat_...
+CALLRADAR_DATASET_URL=<release download URL — see the repo's Releases page>
+```
+6. `python scripts/fetch_dataset.py`
+
+---
+
+### Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `python` / `ffmpeg` / `git` "not recognized" | Close **all** terminal windows (and VS Code, if using its integrated terminal) and open a fresh one — PATH changes don't apply to already-open sessions |
+| PowerShell blocks `.venv\Scripts\activate` | `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser` |
+| `sqlite3.OperationalError: database is locked` | Close DB Browser for SQLite (or any other tool with `callradar.db` open); kill stray Python processes: `Get-Process python \| Stop-Process -Force` |
+| `no such table` / `no such column` | Run `python -m callradar.db` to (re)initialize/migrate the schema |
+| A code change doesn't seem to take effect | Confirm the file actually saved, then fully restart `uvicorn` rather than relying on `--reload` |
 
 ## Dashboard
 
@@ -90,11 +156,12 @@ run one stage only: `python scripts/run_pipeline.py --stage s5` (valid:
 |---|---|
 | `/` | Ranked "needs a manager's attention today" list, lowest score first, with filters (agent, intent, resolution, date range, as-of date) |
 | `/calls/{id}` | Playable recording, produced transcript, AI summary, mood timeline, evidence citations (click one to seek the audio) |
-| `/customers` , `/customers/{id}` | Every customer by name, with their full call history |
+| `/customers`, `/customers/{id}` | Every customer by name, with their full call history |
 | `/agents` | Per-agent call volume, median handle time, resolution rate |
 | `/trends` | Trending intents week-over-week, intent volume by day |
 | `/search` | Full-text search across every transcript (FTS5), or jump straight to a call id |
 | `/upload` | Drop in a fresh, previously-unseen `.mp3` + metadata `.json` and watch it run through s1–s6 live — for demoing on a call chosen on the day, without touching the pre-processed corpus |
+| `/evidence-gate` | Corpus-wide evidence-gate pass rate and a breakdown of why claims fail, when they do |
 
 ## API
 
@@ -183,7 +250,8 @@ No claim from s5 reaches the dashboard unless it passes three checks
 3. quoted text fuzzy-matches the transcript (≥90%, rapidfuzz)
 
 Claims that fail after 2 retries render as "insufficient evidence" instead of
-being dropped or hallucinated over.
+being dropped or hallucinated over. See `/evidence-gate` for the corpus-wide
+pass rate and a breakdown of which check fails, when one does.
 
 ## Stack
 
