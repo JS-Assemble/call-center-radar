@@ -60,17 +60,14 @@ thresholds, dead-air detection, etc).
 python -m callradar.db
 ```
 
-### 7. Get the call data — pick one
+### 7. Get the call data 
 
-**Option A — fetch the pre-processed dataset** (instant browsing, skips the
-multi-hour pipeline run):
-```powershell
-python scripts/fetch_dataset.py
-```
-This repo is private, so this needs a personal access token — see
-"Fetching the pre-processed dataset" below.
+upload audio and metadata file.
 
-**Option B — run the pipeline yourself from raw audio:**
+<img width="959" height="503" alt="image" src="https://github.com/user-attachments/assets/67fdc833-6e52-4712-80bd-fd87ed848e5e" />
+
+or
+
 ```powershell
 unzip /path/to/callradar-data.zip -d data
 python scripts/run_pipeline.py --stage all
@@ -99,8 +96,7 @@ To resume the full chain partway through:
 python scripts/run_pipeline.py --stage all --from-stage s5
 ```
 
-To process just a handful of calls quickly (e.g. for a live demo instead of
-waiting on the full corpus):
+To process just a handful of calls quickly 
 ```powershell
 python scripts/run_pipeline.py --stage s0
 python scripts/run_pipeline.py --stage s1 --limit 20
@@ -118,37 +114,6 @@ uvicorn api.main:app --reload
 Open http://localhost:8000 for the dashboard, or see **API** below for the
 JSON endpoints.
 
----
-
-### Fetching the pre-processed dataset (private repo)
-
-This repo is private, so downloading the release asset requires a personal
-access token:
-
-1. `https://github.com/settings/personal-access-tokens/new` (needs an org
-   invite/collaborator access first — the same access needed to clone this
-   repo)
-2. Repository access → this repo only
-3. Permissions → **Contents: Read-only**
-4. Generate, copy the token
-5. Add to `.env`:
-```
-CALLRADAR_GITHUB_TOKEN=github_pat_...
-CALLRADAR_DATASET_URL=<release download URL — see the repo's Releases page>
-```
-6. `python scripts/fetch_dataset.py`
-
----
-
-### Troubleshooting
-
-| Symptom | Fix |
-|---|---|
-| `python` / `ffmpeg` / `git` "not recognized" | Close **all** terminal windows (and VS Code, if using its integrated terminal) and open a fresh one — PATH changes don't apply to already-open sessions |
-| PowerShell blocks `.venv\Scripts\activate` | `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser` |
-| `sqlite3.OperationalError: database is locked` | Close DB Browser for SQLite (or any other tool with `callradar.db` open); kill stray Python processes: `Get-Process python \| Stop-Process -Force` |
-| `no such table` / `no such column` | Run `python -m callradar.db` to (re)initialize/migrate the schema |
-| A code change doesn't seem to take effect | Confirm the file actually saved, then fully restart `uvicorn` rather than relying on `--reload` |
 
 ## Dashboard
 
