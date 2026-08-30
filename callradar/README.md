@@ -10,22 +10,55 @@ for what was rejected and why.
 ## Prerequisites
 
 - Python 3.12
-- `ffmpeg` on `PATH` (system binary, not a pip package):
-  `brew install ffmpeg` (macOS) / `apt-get install ffmpeg` (Ubuntu) / on
-  Windows, download a build and add its `bin/` folder to `PATH`.
 - A free Gemini API key for s5 (analysis) — https://aistudio.google.com/apikey
 
 ## Quickstart — from scratch
 
 ```bash
 # 1. Set up the environment
-python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-cp .env.example .env          # then add GEMINI_API_KEY
+## Setup & Running
 
-# 2. Unzip the provided call data so it lands here:
-#      callradar/data/audio/<id>.mp3
-#      callradar/data/metadata/<id>.json
+### 1. Clone and enter the project
+```powershell
+git clone <repo-url>
+cd callradar
+```
+
+### 2. Create and activate a virtual environment
+```powershell
+python -m venv .venv
+.venv\Scripts\activate
+```
+If activation is blocked by execution policy:
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
+### 3. Install dependencies
+```powershell
+pip install -r requirements.txt
+```
+
+### 4. Set up ffmpeg (self-contained — no system PATH edits needed)
+```powershell
+python scripts/setup_ffmpeg.py
+```
+
+### 5. Configure environment variables
+```powershell
+copy .env.example .env
+notepad .env
+```
+At minimum, set:
+```
+GEMINI_API_KEY=<your key>
+```
+See `.env.example` for every other option (ASR model, evidence-gate thresholds, etc).
+
+### 6. Initialize the database
+```powershell
+python -m callradar.db
+```
 unzip /path/to/callradar-data.zip -d data
 
 # 3. Run the full pipeline: ingest -> demux -> ASR transcription -> turn

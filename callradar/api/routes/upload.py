@@ -7,11 +7,12 @@ docstring — that's intentional here, for live-demo purposes: pick a fresh
 recording on the day and show the pipeline actually run on it, without
 touching the pre-processed corpus.
 """
+import asyncio
 import json
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Request, UploadFile, File
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 
 from callradar.config import CONFIG
@@ -85,11 +86,39 @@ def _recent_uploads() -> list[dict]:
     return [{"call_id": cid, "status": status} for cid, status in reversed(list(_upload_status.items()))]
 
 
+async def _format_sse(html: str) -> str:
+    # SSE requires every line of a multi-line payload to be prefixed "data: "
+    return "data: " + html.replace("\n", "\ndata: ") + "\n\n"
+
+
 @router.get("/upload", response_class=HTMLResponse)
 def upload_form(request: Request, error: str | None = None):
     return templates.TemplateResponse(
         "upload.html", {"request": request, "error": error, "recent_uploads": _recent_uploads()}
     )
+
+
+@router.get("/upload/events")
+async def upload_events(request: Request):
+    """Server-Sent Events stream: pushes an updated status table only when
+    something actually changed, instead of the client re-fetching on a
+    timer. Connection closes automatically when the browser tab does.
+    """
+    async def event_stream():
+        last_snapshot = None
+        while True:
+            if await request.is_disconnected():
+                break
+            snapshot = tuple(_upload_status.items())
+            if snapshot != last_snapshot:
+                last_snapshot = snapshot
+                html = templates.env.get_template("upload_status_inner.html").render(
+                    request=request, recent_uploads=_recent_uploads()
+                )
+                yield await _format_sse(html)
+            await asyncio.sleep(0.3)  # server-side check interval, not a client refetch
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 @router.post("/upload")
@@ -121,10 +150,6 @@ def upload_submit(
     _register_call(call_id, audio_path, metadata_path, meta)
 
     if _already_complete(call_id):
-        # Fast path: this call was already fully processed (e.g. re-uploaded
-        # the same file, or it's one of the pre-processed corpus calls) —
-        # skip the background task entirely instead of paying for six
-        # stage calls that would each just do a DB lookup and exit.
         _upload_status[call_id] = "done"
         return RedirectResponse(url="/upload", status_code=303)
 

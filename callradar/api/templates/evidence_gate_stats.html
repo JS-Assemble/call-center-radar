@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% import "_macros.html" as macros %}
+{% block title %}Evidence Gate{% endblock %}
+{% block content %}
+{{ macros.page_head("Evidence Gate", "No claim reaches the dashboard unless it cites a real turn, a timestamp inside that turn's span, and a quote that actually appears there.") }}
+
+{% if total_attempted == 0 %}
+    {{ macros.empty_state("No calls analyzed yet — run s5 to see stats here.") }}
+{% else %}
+
+<div style="display:flex; gap:2rem; align-items:baseline; margin:1.5rem 0;">
+    <div>
+        <div style="font-size:3rem; font-weight:700; line-height:1;">
+            {{ pass_rate }}%
+        </div>
+        <div style="color:#666;">of claims pass evidence-gate on the first attempt</div>
+    </div>
+    <div style="color:#666; font-size:0.9rem;">
+        {{ validated_count }} validated &middot;
+        {{ still_retrying }} still retrying &middot;
+        {{ insufficient_final }} permanently insufficient evidence
+        (of {{ total_attempted }} calls analyzed)
+    </div>
+</div>
+
+<h3>Why claims fail, when they do</h3>
+{% if failures %}
+<table>
+    <thead><tr><th>Check</th><th>Count</th><th>% of all attempts</th></tr></thead>
+    <tbody>
+        {% for f in failures %}
+        <tr>
+            <td>{{ f.label }}</td>
+            <td>{{ f.count }}</td>
+            <td>
+                <div style="background:#eee; border-radius:4px; overflow:hidden; width:200px; display:inline-block; vertical-align:middle; margin-right:0.5rem;">
+                    <div style="background:#0b5fff; height:10px; width:{{ f.pct }}%;"></div>
+                </div>
+                {{ f.pct }}%
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+    {{ macros.empty_state("No failures recorded — every attempted claim has passed so far.") }}
+{% endif %}
+
+<p style="color:#666; font-size:0.85rem; margin-top:2rem;">
+    Three checks, run against every citation: the turn_id must exist, the
+    timestamp must fall inside that turn's span (&plusmn;0.5s tolerance),
+    and the quote must fuzzy-match the turn's real text (&ge;90% similarity).
+    A claim that fails after 2 retries renders as
+    &ldquo;insufficient evidence&rdquo; on its call page instead of being
+    dropped or hallucinated over.
+</p>
+
+{% endif %}
+{% endblock %}

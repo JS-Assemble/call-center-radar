@@ -12,3 +12,4 @@ data/metadata/*
 !data/metadata/.gitkeep
 eval/hand_transcripts/*
 !eval/hand_transcripts/.gitkeep
+tools/

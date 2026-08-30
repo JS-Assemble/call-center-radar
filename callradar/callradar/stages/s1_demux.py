@@ -27,7 +27,7 @@ def demux_one(audio_path: str, call_id: str, work_dir: Path) -> tuple[str, Path,
     try:
         subprocess.run(
             [
-                "ffmpeg", "-y", "-nostdin", "-loglevel", "error", "-i", audio_path,
+                CONFIG.ffmpeg_path, "-y", "-nostdin", "-loglevel", "error", "-i", audio_path,
                 "-filter_complex",
                 "[0:a]channelsplit=channel_layout=stereo[left][right]",
                 "-map", "[left]", "-ar", "16000", str(agent_wav),

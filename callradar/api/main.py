@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from api.routes import calls, audio, customers, insights, search ,upload
+from api.routes import calls, audio, customers, insights, search ,upload ,evidence_stats
 
 app = FastAPI(title="Call-Centre Radar")
 
@@ -17,6 +17,7 @@ app.include_router(customers.router)
 app.include_router(insights.router)
 app.include_router(search.router)
 app.include_router(upload.router)
+app.include_router(evidence_stats.router)
 
 
 @app.get("/health")

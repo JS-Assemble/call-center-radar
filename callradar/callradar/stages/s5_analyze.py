@@ -175,19 +175,20 @@ def run(call_ids: list[str] | None = None, limit: int | None = None) -> None:
             result = validate_analysis(analysis, turns_by_id={t["turn_id"]: t for t in turns})
 
             conn.execute(
-                """INSERT INTO analyses
-                   (call_id, intent, resolution, summary, mood_shift, raw_llm_json, validated, retries)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                   ON CONFLICT(call_id) DO UPDATE SET
-                     intent=excluded.intent, resolution=excluded.resolution,
-                     summary=excluded.summary, mood_shift=excluded.mood_shift,
-                     raw_llm_json=excluded.raw_llm_json, validated=excluded.validated,
-                     retries=excluded.retries""",
-                (
-                    call_id, analysis.intent, analysis.resolution, analysis.summary,
-                    analysis.mood_shift.model_dump_json() if analysis.mood_shift else None,
-                    json.dumps(raw), int(result.validated), retries + (0 if result.validated else 1),
-                ),
+            """INSERT INTO analyses
+            (call_id, intent, resolution, summary, mood_shift, raw_llm_json, validated, failed_check, retries)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(call_id) DO UPDATE SET
+                intent=excluded.intent, resolution=excluded.resolution,
+                summary=excluded.summary, mood_shift=excluded.mood_shift,
+                raw_llm_json=excluded.raw_llm_json, validated=excluded.validated,
+                failed_check=excluded.failed_check, retries=excluded.retries""",
+            (
+                call_id, analysis.intent, analysis.resolution, analysis.summary,
+                analysis.mood_shift.model_dump_json() if analysis.mood_shift else None,
+                json.dumps(raw), int(result.validated), result.failed_check,
+                retries + (0 if result.validated else 1),
+            ),
             )
             conn.commit()
             processed += 1

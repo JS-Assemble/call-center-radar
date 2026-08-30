@@ -1,6 +1,7 @@
 """Central config, loaded from .env. Every stage imports this, nothing else."""
 import os
 from dataclasses import dataclass
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -26,6 +27,16 @@ class Config:
     # should." at avg ~0.31) vs. legitimate-but-quiet content elsewhere in
     # the corpus (e.g. a mumbled "4.45 p.m." at avg ~0.65) staying well clear.
     asr_min_word_confidence: float = float(os.getenv("CALLRADAR_ASR_MIN_WORD_CONFIDENCE", "0.45"))
+
+    # Looks for a project-local ffmpeg first (see scripts/setup_ffmpeg.py) so
+    # nobody needs to touch system PATH — falls back to "ffmpeg" (PATH
+    # lookup) only if the local one isn't there.
+    ffmpeg_path: str = os.getenv(
+        "CALLRADAR_FFMPEG_PATH",
+        str(Path(__file__).resolve().parent.parent / "tools" / "ffmpeg" / "bin" / "ffmpeg.exe")
+        if (Path(__file__).resolve().parent.parent / "tools" / "ffmpeg" / "bin" / "ffmpeg.exe").exists()
+        else "ffmpeg",
+    )
 
     dead_air_min_gap_s: float = float(os.getenv("CALLRADAR_DEAD_AIR_MIN_GAP_S", "2.0"))
     dead_air_rms_threshold: float = float(os.getenv("CALLRADAR_DEAD_AIR_RMS_THRESHOLD", "0.03"))

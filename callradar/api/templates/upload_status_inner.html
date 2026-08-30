@@ -1,0 +1,32 @@
+{% import "_macros.html" as macros %}
+{% if recent_uploads %}
+<h3 style="margin-top: 2rem;">This session's uploads</h3>
+<table>
+    <thead><tr><th>Call</th><th>Status</th></tr></thead>
+    <tbody>
+        {% for u in recent_uploads %}
+        <tr>
+            <td>
+                {% if u.status == "done" %}
+                    <a href="/calls/{{ u.call_id }}">{{ u.call_id }}</a>
+                {% else %}
+                    {{ u.call_id }}
+                {% endif %}
+            </td>
+            <td>
+                {% if u.status in ("pending", "processing") %}
+                    <span class="cr-spinner"></span> {{ u.status }}
+                {% elif u.status == "done" %}
+                    &#9989; done
+                {% else %}
+                    &#9888;&#65039; {{ u.status }}
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<p style="color:#666; font-size:0.85rem;">Live — updates automatically, no refresh needed.</p>
+{% else %}
+    {{ macros.empty_state("No uploads yet this session.") }}
+{% endif %}

@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS analyses (
     mood_shift      TEXT,               -- JSON: {turn_id, from, to, evidence_quote}
     raw_llm_json    TEXT NOT NULL,      -- full response, for audit
     validated       INTEGER DEFAULT 0,  -- 0 = insufficient evidence, 1 = passed gate
+    failed_check    TEXT,               -- which check failed: turn_id_exists | timestamp_in_span | quote_match, NULL if validated=1
     retries         INTEGER DEFAULT 0,
     updated_at      TEXT DEFAULT CURRENT_TIMESTAMP
 );
@@ -78,6 +79,12 @@ def get_connection() -> sqlite3.Connection:
 def init_db() -> None:
     with get_connection() as conn:
         conn.executescript(SCHEMA)
+        # Migration: analyses.failed_check didn't exist in earlier schema
+        # versions — CREATE TABLE IF NOT EXISTS won't add a column to a
+        # table that already exists, so check and ALTER if it's missing.
+        columns = {row["name"] for row in conn.execute("PRAGMA table_info(analyses)").fetchall()}
+        if "failed_check" not in columns:
+            conn.execute("ALTER TABLE analyses ADD COLUMN failed_check TEXT")
 
 
 @contextmanager
