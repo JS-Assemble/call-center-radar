@@ -110,7 +110,7 @@ def _split_into_sentences(words: list) -> list[dict]:
 def transcribe_wav(wav_path: Path) -> list[dict]:
     model = _get_model()
     segments, _info = model.transcribe(
-        str(wav_path), vad_filter=True, vad_parameters=dict(speech_pad_ms=500),
+        str(wav_path), vad_filter=True, vad_parameters=dict(speech_pad_ms=500,min_speech_duration_ms=250, threshold=0.5, ),
         initial_prompt=_INITIAL_PROMPT, word_timestamps=True,
     )
 
